@@ -85,21 +85,24 @@ export function JsonSchema({ schema, onChange }: JsonSchemaProps) {
   //   updateSchema(newFields);
   // };
 
-  const updateField = (index: number, key: string, value: string) => {
-    setFields((prev) => {
-      const newFields = [...prev];
-      // Update the specific field with the new value
-      newFields[index] = {
-        ...newFields[index],
-        [key]: value,
-      };
+  const updateField = (
+    index: number,
+    key: string,
+    value: string,
+    shouldSave = false,
+  ) => {
+    const newFields = [...fields];
 
-      return newFields;
-    });
-  };
+    newFields[index] = {
+      ...newFields[index],
+      [key]: value,
+    };
 
-  const saveFields = () => {
-    updateSchema(fields);
+    setFields(newFields);
+
+    if (shouldSave) {
+      updateSchema(newFields);
+    }
   };
 
   const removeField = (index: number) => {
@@ -119,7 +122,7 @@ export function JsonSchema({ schema, onChange }: JsonSchemaProps) {
                 <Input
                   value={field.name}
                   onChange={(e) => updateField(i, "name", e.target.value)}
-                  onBlur={saveFields}
+                  onBlur={(e) => updateField(i, "name", e.target.value, true)}
                   placeholder="field_name"
                   className="h-8 text-sm"
                 />
@@ -129,8 +132,7 @@ export function JsonSchema({ schema, onChange }: JsonSchemaProps) {
                 <Select
                   value={field.type}
                   onValueChange={(v) => {
-                    updateField(i, "type", v);
-                    saveFields();
+                    updateField(i, "type", v, true);
                   }}
                 >
                   <SelectTrigger className="text-xs h-8! py-0!">
@@ -152,7 +154,9 @@ export function JsonSchema({ schema, onChange }: JsonSchemaProps) {
                   onChange={(e) =>
                     updateField(i, "description", e.target.value)
                   }
-                  onBlur={saveFields}
+                  onBlur={(e) =>
+                    updateField(i, "description", e.target.value, true)
+                  }
                   rows={2}
                   placeholder="Optional description"
                   className="h-8 text-xs max-w-32"
@@ -177,8 +181,10 @@ export function JsonSchema({ schema, onChange }: JsonSchemaProps) {
                     .map((v: string) => v.trim())
                     .filter(Boolean)}
                   onValueChange={(values) => {
-                    updateField(i, "enumValues", values.join(", "));
-                    saveFields();
+                    updateField(i, "enumValues", values.join(", "), false);
+                  }}
+                  onBlur={() => {
+                    updateSchema(fields);
                   }}
                 >
                   <TagsInputList>
