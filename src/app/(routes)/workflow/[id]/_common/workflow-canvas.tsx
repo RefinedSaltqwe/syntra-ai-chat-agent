@@ -120,8 +120,8 @@ const WorkflowCanvas = ({ workflowId }: { workflowId: string }) => {
     updateWorkflow({ nodes, edges });
   };
 
-  console.log("ALL NODES", nodes);
-  console.log("ALL EDGES", edges);
+  // console.log("ALL NODES", nodes);
+  // console.log("ALL EDGES", edges);
 
   return (
     <>
