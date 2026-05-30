@@ -159,15 +159,15 @@ export async function streamAgentAction({
   //6. Build deterministic workflow system prompt
   const systemPrompt = `You are a helpful assistant.
 
-**Analyze the conversation flow:**
-1. Check YOUR last message - did you ask the user for information?
-2. If YES and the user is providing that information → treat it as a follow-up response
-3. If NO or the user changes the topic → classify the message independently as a new intent
+  **Analyze the conversation flow:**
+  1. Check YOUR last message - did you ask the user for information?
+  2. If YES and the user is providing that information → treat it as a follow-up response
+  3. If NO or the user changes the topic → classify the message independently as a new intent
 
-**System Instructions:**
-${instructions}
+  **System Instructions:**
+  ${instructions}
 
-${toolList ? `**Available tools:**\n${toolList}` : ""}`.trim();
+  ${toolList ? `**Available tools:**\n${toolList}` : ""}`.trim();
 
   // JSON OUTPUT MODE
   //7. Generate structured object response
@@ -184,6 +184,12 @@ ${toolList ? `**Available tools:**\n${toolList}` : ""}`.trim();
       output: Output.object({
         schema: jsonOutput.schema as any,
       }),
+      onStepFinish(step) {
+        console.log(
+          "Tool Results Full:",
+          JSON.stringify(step.toolResults, null, 2),
+        );
+      },
     });
 
     return result;
@@ -204,12 +210,19 @@ ${toolList ? `**Available tools:**\n${toolList}` : ""}`.trim();
 
     maxOutputTokens: 1000,
 
-    onFinish: async () => {
+    onFinish: async (result) => {
+      console.log("FINAL TEXT:", result.text);
       console.log("Closing MCP clients");
       //9. Close MCP connections after completion
       for (const client of mcpClients) {
         await client.close();
       }
+    },
+    onStepFinish(step) {
+      console.log(
+        "Tool Results Full:",
+        JSON.stringify(step.toolResults, null, 2),
+      );
     },
   });
 }

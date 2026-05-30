@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState } from "react";
@@ -56,8 +55,10 @@ export default function CodeDialog({ workflowId }: { workflowId?: string }) {
               </Button>
             </div>
             <div className="p-4 overflow-x-auto">
-              <pre className="text-sm font-mono
-              text-white dark:text-background whitespace-pre-wrap break-all">
+              <pre
+                className="text-sm font-mono
+              text-white dark:text-background whitespace-pre-wrap break-all"
+              >
                 {code}
               </pre>
             </div>
