@@ -11,19 +11,31 @@ export type AgentNodeData = {
 
 export type WorkflowNode = Node<AgentNodeData>;
 
+// ============================================================================
+// Sort workflow nodes into dependency-safe execution order
+// - Builds graph from nodes and edges
+// - Detects circular dependencies
+// - Excludes non-executable nodes
+// ============================================================================
+
 export function topologicalSort(nodes: WorkflowNode[], edges: Edge[]) {
+  // Initialize dependency graph
   const ts = new TopologicalSort(new Map());
+
+  // Node types excluded from execution
   const excludedNodes: NodeType[] = [NodeTypeEnum.COMMENT];
 
+  // Register all workflow nodes
   nodes.forEach((node) => {
     ts.addNode(node.id, node);
   });
 
+  // Register node dependencies
   edges.forEach((edge) => {
     ts.addEdge(edge.source, edge.target);
   });
 
-  // Deduplicate and add edges
+  // Optional edge deduplication safeguard
   // const seenEdges = new Set<string>();
   // edges.forEach((edge) => {
   //   const key = `${edge.source}->${edge.target}`;
@@ -34,41 +46,73 @@ export function topologicalSort(nodes: WorkflowNode[], edges: Edge[]) {
   // });
 
   try {
+    // Generate dependency-sorted graph
     const sortedMap = ts.sort();
+
+    // Extract sorted node ids
     const sortedIds = Array.from(sortedMap.keys());
-    return sortedIds
-      .map((id) => nodes.find((node) => node.id === id)!)
-      .filter(
-        (node) =>
-          node.type !== undefined &&
-          !excludedNodes.includes(node.type as NodeType),
-      );
+
+    // Convert ids back to workflow nodes
+    return (
+      sortedIds
+        .map((id) => nodes.find((node) => node.id === id)!)
+
+        // Remove excluded node types
+        .filter(
+          (node) =>
+            node.type !== undefined &&
+            !excludedNodes.includes(node.type as NodeType),
+        )
+    );
   } catch (error) {
+    // Workflow contains circular dependencies
     throw new Error(
       "Workflow contains a cycle or invalid dependencies. Cannot execute.",
       { cause: error },
     );
   }
 }
+/* ============================================================================
+   NEXT NODE RESOLUTION
 
+   Flow:
+   1. Find outgoing edges
+   2. Check for workflow completion
+   3. Read current node output
+   4. Resolve branch selection
+   5. Return next node(s)
+
+   Responsibilities:
+   - Flow navigation
+   - Branch routing
+   - Execution path resolution
+============================================================================ */
 export function getNextNodes(
   currentNodeId: string,
   edges: Edge[],
   context: ExecutorContextType,
 ) {
+  // Find all outgoing connections
   const outgoingEdges = edges.filter((edge) => edge.source === currentNodeId);
 
+  // End of workflow reached
   if (outgoingEdges.length === 0) return [];
 
+  // Retrieve current node execution result
   const currentOutput = context.outputs[currentNodeId];
 
+  // Route using selected branch output
   if (currentOutput?.selectedBranch) {
+    // Find matching branch edge
     const branchEdge = outgoingEdges.find(
       (edge) => edge.sourceHandle === currentOutput.selectedBranch,
     );
+
+    // Return selected path only
     return branchEdge ? [branchEdge.target] : [];
   }
 
+  // Return all connected downstream nodes
   return outgoingEdges.map((edge) => edge.target);
 }
 

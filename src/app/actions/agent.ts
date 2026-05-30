@@ -16,6 +16,28 @@ import {
   UIMessage,
 } from "ai";
 
+/* ============================================================================
+   AGENT EXECUTION ENGINE
+
+   Flow:
+   1. Convert UI chat history -> model messages
+   2. Register native tools (web search)
+   3. Connect selected MCP servers
+   4. Load MCP tool definitions
+   5. Build system prompt + workflow rules
+   6. Execute in JSON mode OR streaming mode
+   7. Stream tool calls/results to model
+   8. Cleanup MCP connections after execution
+
+   Responsibilities:
+   - Message transformation
+   - Tool registration
+   - MCP integration
+   - AI execution
+   - Structured output generation
+   - Resource cleanup
+============================================================================ */
+
 type TextPart = {
   type: "text";
   text: string;
@@ -53,6 +75,14 @@ type McpClient = {
   close: () => Promise<void>;
   tools: () => Promise<Record<string, ToolDefinition>>;
 };
+// ============================================================================
+// Main agent execution pipeline
+// - Builds context
+// - Loads tools
+// - Creates system prompt
+// - Runs AI workflow
+// - Returns JSON or streamed output
+// ============================================================================
 
 export async function streamAgentAction({
   model,
@@ -75,6 +105,7 @@ export async function streamAgentAction({
       }
   >;
 }) {
+  //1. Convert UI messages into AI SDK model messages
   const modelMessages: ModelMessage[] = history
     .map((msg) => {
       if (msg.role === "user") {
@@ -98,16 +129,17 @@ export async function streamAgentAction({
 
   //const modelMessages = await convertToModelMessages(history)
 
+  //2.  Initialize available tools and MCP clients
   const tools: Record<string, unknown> = {};
   const mcpClients: McpClient[] = [];
 
-  //Native tools
+  //3.  Register selected native tools
   for (const t of selectedTools.filter((t) => t.type === "native")) {
     if (t.value === "webSearch") {
       tools.webSearch = webSearch();
     }
   }
-
+  //4. Connect selected MCP servers and load tools
   for (const t of selectedTools.filter((t) => t.type === "mcp")) {
     const { toolSet, mcpClient } = await getMcpToolsByServerId(t.serverId);
 
@@ -119,51 +151,26 @@ export async function streamAgentAction({
       }
     }
   }
-
+  //5. Build tool list for prompt injection
   const toolList = Object.entries(tools)
     ?.map(([name]) => `- ${name}`)
     ?.join("\n");
 
-  const systemPrompt = `
-You are a workflow AI assistant.
+  //6. Build deterministic workflow system prompt
+  const systemPrompt = `You are a helpful assistant.
 
-Your role is to execute workflow tasks accurately and deterministically.
+**Analyze the conversation flow:**
+1. Check YOUR last message - did you ask the user for information?
+2. If YES and the user is providing that information → treat it as a follow-up response
+3. If NO or the user changes the topic → classify the message independently as a new intent
 
-Follow the provided instructions exactly and respond according to the configured output format.
-
-Conversation handling rules:
-1. Analyze the previous assistant message.
-2. If the assistant previously asked for missing information and the user is now providing it, treat the message as a continuation of the current workflow.
-3. If the user changes the topic entirely, treat it as a new request.
-4. Never invent, assume, expand, summarize, or rewrite user-provided information.
-5. Extract or use only information explicitly written by the user.
-6. If a required field is missing, return an empty string instead of guessing.
-7. Preserve exact wording when extracting values from the user.
-
+**System Instructions:**
 ${instructions}
 
-${toolList ? `Available tools:\n${toolList}` : ""}
+${toolList ? `**Available tools:**\n${toolList}` : ""}`.trim();
 
-Critical rules:
-- Return ONLY the requested output
-- Do NOT add explanations
-- Do NOT add conversational filler
-- Do NOT continue the user's story or message
-- Do NOT hallucinate missing values
-- Keep outputs concise and deterministic
-- Never invent fields that were not provided
-- Never rewrite extracted values
-- Never output markdown unless explicitly requested
-
-JSON mode rules:
-- When structured output is requested, return ONLY valid structured data
-- Do NOT wrap JSON in markdown
-- Do NOT include extra keys
-- All required schema fields must always be returned
-`.trim();
-  // =========================
-  // JSON MODE
-  // =========================
+  // JSON OUTPUT MODE
+  //7. Generate structured object response
   if (jsonOutput) {
     const result = await generateText({
       model: openrouter.chat(model),
@@ -182,9 +189,8 @@ JSON mode rules:
     return result;
   }
 
-  // =========================
-  // TEXT MODE
-  // =========================
+  // TEXT OUTPUT MODE
+  //8. Stream response with tool execution
   return streamText({
     model: openrouter.chat(model),
 
@@ -200,14 +206,14 @@ JSON mode rules:
 
     onFinish: async () => {
       console.log("Closing MCP clients");
-
+      //9. Close MCP connections after completion
       for (const client of mcpClients) {
         await client.close();
       }
     },
   });
 }
-
+// Extract assistant text from workflow nodes
 function extractAssistantContent(parts: MessagePart[]) {
   const content =
     parts
@@ -229,6 +235,7 @@ function extractAssistantContent(parts: MessagePart[]) {
   };
 }
 
+// Extract assistant text, tool calls, and tool results
 function extractAgentContent(parts: MessagePart[]) {
   const content: Array<
     | {
@@ -292,6 +299,7 @@ function extractAgentContent(parts: MessagePart[]) {
   };
 }
 
+// Connect MCP server and load available tools
 async function getMcpToolsByServerId(serverId: string) {
   const server = await db.mcpServer.findUnique({
     where: { id: serverId },
@@ -322,6 +330,7 @@ async function getMcpToolsByServerId(serverId: string) {
   return { toolSet, mcpClient };
 }
 
+// Test MCP connection and discover tools
 export async function connectMcpServer({
   url,
   apiKey,
@@ -364,7 +373,7 @@ export async function connectMcpServer({
 
   return { tools: toolsArray };
 }
-
+// Save or update MCP server configuration to database
 export async function addMcpServer({
   url,
   apiKey,

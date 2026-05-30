@@ -118,6 +118,7 @@ export async function executeAgentNode(
     // Accumulate streamed text response
     let fullText = "";
 
+    //? This is where the streaming "magic" happens - we process each incoming chunk from the agentAction stream and emit realtime updates to the frontend workflow UI via the channel
     // 9. Process streamed AI events chunk-by-chunk
     for await (const chunk of result.fullStream) {
       switch (chunk.type) {
