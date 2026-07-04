@@ -143,9 +143,10 @@
   // ==========================
 
   window.addEventListener("message", function (event) {
-    if (event.data?.type === "syntra-close") {
+    if (event.data && event.data.type === "syntra-close") {
       iframe.style.visibility = "hidden";
       iframe.style.pointerEvents = "none";
+
       btn.style.display = "flex";
       btn.innerHTML = chatSVG;
     }
@@ -157,12 +158,21 @@
     if (open) {
       iframe.style.visibility = "hidden";
       iframe.style.pointerEvents = "none";
-      btn.style.display = "flex";
+
+      if (isFullscreen) {
+        btn.style.display = "flex";
+      }
+
       btn.innerHTML = chatSVG;
     } else {
       iframe.style.visibility = "visible";
       iframe.style.pointerEvents = "auto";
-      btn.style.display = "none";
+
+      if (isFullscreen) {
+        btn.style.display = "none";
+      } else {
+        btn.innerHTML = closeSVG;
+      }
     }
   };
 })();
