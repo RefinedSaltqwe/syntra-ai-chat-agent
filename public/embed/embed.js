@@ -24,6 +24,8 @@
 
   var side = position === "left" ? { left: "24px" } : { right: "24px" };
 
+  var isFullscreen = window.matchMedia("(max-width: 1023px)").matches;
+
   // ==========================
   // Icons
   // ==========================
@@ -44,24 +46,31 @@
 
   btn.innerHTML = chatSVG;
 
-  Object.assign(btn.style, {
-    position: "fixed",
-    bottom: "24px",
-    zIndex: zIndex,
-    width: "56px",
-    height: "56px",
-    padding: "0",
-    borderRadius: "50%",
-    background: theme,
-    border: "none",
-    boxShadow: "0 4px 20px rgba(0,0,0,.15)",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transition: "all .2s ease",
-    ...side,
-  });
+  Object.assign(
+    btn.style,
+    {
+      width: "56px",
+      height: "56px",
+      padding: "0",
+      borderRadius: "50%",
+      background: theme,
+      border: "none",
+      boxShadow: "0 4px 20px rgba(0,0,0,.15)",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      transition: "all .2s ease",
+      zIndex: zIndex,
+      position: "fixed",
+      bottom: isFullscreen ? "20px" : "24px",
+    },
+    isFullscreen
+      ? {
+          right: "20px",
+        }
+      : side,
+  );
 
   document.body.appendChild(btn);
 
@@ -84,22 +93,44 @@
 
   iframe.src = baseUrl + "/index.html?" + params.toString();
 
-  Object.assign(iframe.style, {
-    visibility: "hidden",
-    pointerEvents: "none",
-    position: "fixed",
-    bottom: "90px",
-    width: width + "px",
-    height: height + "px",
-    borderRadius: borderRadius + "px",
-    border: "none",
-    background: "#fff",
-    boxShadow: "0 12px 40px rgba(0,0,0,.18)",
-    opacity: "0",
-    transition: "opacity .2s ease",
-    zIndex: String(Number(zIndex) - 1),
-    ...side,
-  });
+  Object.assign(
+    iframe.style,
+    isFullscreen
+      ? {
+          position: "fixed",
+          inset: "0",
+          width: "100vw",
+          height: "100dvh", // use dvh instead of vh
+          borderRadius: "0",
+          bottom: "0",
+          left: "0",
+          right: "0",
+          top: "0",
+          zIndex: String(Number(zIndex) - 1),
+          border: "none",
+          background: "#fff",
+          visibility: "hidden",
+          pointerEvents: "none",
+          opacity: "0",
+          transition: "opacity .2s ease",
+        }
+      : {
+          position: "fixed",
+          bottom: "90px",
+          width: width + "px",
+          height: height + "px",
+          borderRadius: borderRadius + "px",
+          border: "none",
+          background: "#fff",
+          boxShadow: "0 12px 40px rgba(0,0,0,.18)",
+          visibility: "hidden",
+          pointerEvents: "none",
+          opacity: "0",
+          transition: "opacity .2s ease",
+          zIndex: String(Number(zIndex) - 1),
+          ...side,
+        },
+  );
 
   iframe.onload = function () {
     iframe.style.opacity = "1";
